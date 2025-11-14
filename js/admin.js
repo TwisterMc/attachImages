@@ -61,7 +61,7 @@ jQuery(document).ready(function ($) {
   });
 
   // Aggregate results from all batches
-  aggregateResults = {
+  var aggregateResults = {
     total_orphaned: 0,
     attached: 0,
     not_found: 0,
