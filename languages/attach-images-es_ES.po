@@ -54,3 +54,11 @@ msgstr "Resultados"
 #: attach_images.php:134
 msgid "Insufficient permissions"
 msgstr "Permisos insuficientes"
+
+#: attach_images.php:108
+msgid "Stop processing"
+msgstr "Detener procesamiento"
+
+#: attach_images.php:109
+msgid "Stop"
+msgstr "Detener"

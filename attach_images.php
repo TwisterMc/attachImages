@@ -97,18 +97,22 @@ class Attach_Orphaned_Images {
 			<div class="attach-images-header">
 				<p><?php esc_html_e( 'This tool will scan for attachments that have no parent post and attempt to attach them to posts that reference them.', 'attach-images' ); ?></p>
 
-				<div class="attach-images-actions">
-					<button type="button" id="scan-button" class="button button-primary" aria-describedby="scan-description">
-						<?php esc_html_e( 'Scan and Attach Images', 'attach-images' ); ?>
-					</button>
-					<button type="button" id="preview-button" class="button" aria-describedby="scan-description">
-						<?php esc_html_e( 'Preview Only (Dry Run)', 'attach-images' ); ?>
-					</button>
-					<span id="scan-description" class="screen-reader-text">
-						<?php esc_html_e( 'Scans orphaned attachments and attempts to attach them to posts that reference them. Preview mode shows what would happen without making changes.', 'attach-images' ); ?>
-					</span>
-				</div>
-			</div>			<div id="attach-images-progress" class="hidden" aria-hidden="true">
+			<div class="attach-images-actions">
+				<button type="button" id="scan-button" class="button button-primary" aria-describedby="scan-description">
+					<?php esc_html_e( 'Scan and Attach Images', 'attach-images' ); ?>
+				</button>
+				<button type="button" id="preview-button" class="button" aria-describedby="scan-description">
+					<?php esc_html_e( 'Preview Only (Dry Run)', 'attach-images' ); ?>
+				</button>
+				<button type="button" id="stop-button" class="button hidden" aria-label="<?php esc_attr_e( 'Stop processing', 'attach-images' ); ?>">
+					<?php esc_html_e( 'Stop', 'attach-images' ); ?>
+				</button>
+				<span id="scan-description" class="screen-reader-text">
+					<?php esc_html_e( 'Scans orphaned attachments and attempts to attach them to posts that reference them. Preview mode shows what would happen without making changes.', 'attach-images' ); ?>
+				</span>
+			</div>
+			</div>			
+			<div id="attach-images-progress" class="hidden" aria-hidden="true">
 				<div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="<?php esc_attr_e( 'Scan progress', 'attach-images' ); ?>">
 					<div class="progress-fill"></div>
 				</div>

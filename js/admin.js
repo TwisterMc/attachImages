@@ -3,11 +3,14 @@ jQuery(document).ready(function ($) {
 
   var $scanButton = $("#scan-button");
   var $previewButton = $("#preview-button");
+  var $stopButton = $("#stop-button");
   var $progress = $("#attach-images-progress");
   var $progressFill = $(".progress-fill");
   var $progressText = $(".progress-text");
   var $results = $("#attach-images-results");
   var $resultsContent = $(".results-content");
+
+  var isCancelled = false;
 
   // Scan and attach handler
   $scanButton.on("click", function () {
@@ -19,6 +22,13 @@ jQuery(document).ready(function ($) {
     runScan(true);
   });
 
+  // Stop button handler
+  $stopButton.on("click", function () {
+    isCancelled = true;
+    $stopButton.prop("disabled", true);
+    $progressText.text("Stopping... Please wait.");
+  });
+
   var aggregateResults = {
     total_orphaned: 0,
     attached: 0,
@@ -28,9 +38,15 @@ jQuery(document).ready(function ($) {
   };
 
   function runScan(dryRun) {
+    // Reset cancellation flag
+    isCancelled = false;
+
     // Disable buttons
     $scanButton.prop("disabled", true).attr("aria-busy", "true");
     $previewButton.prop("disabled", true).attr("aria-busy", "true");
+
+    // Show stop button
+    $stopButton.removeClass("hidden").prop("disabled", false);
 
     // Reset aggregate results
     aggregateResults = {
@@ -57,6 +73,12 @@ jQuery(document).ready(function ($) {
   }
 
   function processBatch(dryRun, offset) {
+    // Check if cancelled before making request
+    if (isCancelled) {
+      finishProcessing(true);
+      return;
+    }
+
     $.ajax({
       url: attachImagesData.ajax_url,
       type: "POST",
@@ -97,27 +119,16 @@ jQuery(document).ready(function ($) {
           );
 
           // Check if there are more batches to process
-          if (data.has_more) {
+          if (data.has_more && !isCancelled) {
             // Process next batch
             processBatch(dryRun, data.next_offset);
           } else {
-            // All batches complete
-            $progressFill.css("width", "100%");
-            $(".progress-bar").attr("aria-valuenow", "100");
-            setTimeout(function () {
-              $progress.addClass("hidden").attr("aria-hidden", "true");
-              displayResults(aggregateResults);
-
-              // Re-enable buttons and remove busy state
-              $scanButton
-                .prop("disabled", false)
-                .removeAttr("aria-busy")
-                .focus();
-              $previewButton.prop("disabled", false).removeAttr("aria-busy");
-            }, 500);
+            // All batches complete or cancelled
+            finishProcessing(isCancelled);
           }
         } else {
           $progress.addClass("hidden").attr("aria-hidden", "true");
+          $stopButton.addClass("hidden");
           showAccessibleError(
             response.data.message || "Unknown error occurred"
           );
@@ -129,6 +140,7 @@ jQuery(document).ready(function ($) {
       },
       error: function (xhr, status, error) {
         $progress.addClass("hidden").attr("aria-hidden", "true");
+        $stopButton.addClass("hidden");
         showAccessibleError("Error: " + error);
 
         // Re-enable buttons and remove busy state
@@ -136,6 +148,31 @@ jQuery(document).ready(function ($) {
         $previewButton.prop("disabled", false).removeAttr("aria-busy");
       },
     });
+  }
+
+  function finishProcessing(wasCancelled) {
+    $progressFill.css("width", "100%");
+    $(".progress-bar").attr("aria-valuenow", "100");
+
+    if (wasCancelled) {
+      $progressText.text("Processing stopped by user.");
+    }
+
+    setTimeout(function () {
+      $progress.addClass("hidden").attr("aria-hidden", "true");
+      $stopButton.addClass("hidden");
+
+      if (wasCancelled) {
+        // Show partial results with cancellation notice
+        aggregateResults.cancelled = true;
+      }
+
+      displayResults(aggregateResults);
+
+      // Re-enable buttons and remove busy state
+      $scanButton.prop("disabled", false).removeAttr("aria-busy").focus();
+      $previewButton.prop("disabled", false).removeAttr("aria-busy");
+    }, 500);
   }
 
   function displayResults(data) {
@@ -160,7 +197,10 @@ jQuery(document).ready(function ($) {
     html += "</div>";
     html += "</div>";
 
-    if (data.dry_run) {
+    if (data.cancelled) {
+      html +=
+        '<div class="notice notice-warning"><p><strong>Stopped:</strong> Processing was stopped by user. Showing partial results.</p></div>';
+    } else if (data.dry_run) {
       html +=
         '<div class="notice notice-info"><p><strong>Preview Mode:</strong> No changes were made. Click "Scan and Attach Images" to perform the actual attachment.</p></div>';
     } else if (data.attached > 0) {
