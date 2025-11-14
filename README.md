@@ -14,6 +14,7 @@ A WordPress plugin that automatically scans for orphaned media attachments (imag
   - Different image sizes (large, medium, thumbnail)
 - **Preview Mode**: Dry run option to see what would be attached without making changes
 - **Stop Processing**: Cancel scans at any time and view partial results
+- **Clear Scan Cache**: Manual cache clearing button for when post content changes
 - **Batch Processing**: Efficiently handles large media libraries (3000+ images) in 50-item batches
 - **Performance Optimized**:
   - Query result caching
@@ -39,6 +40,7 @@ A WordPress plugin that automatically scans for orphaned media attachments (imag
    - **Scan and Attach Images**: Performs the actual attachment process
    - **Preview Only (Dry Run)**: Shows what would happen without making changes
    - **Stop**: (Appears during processing) Cancels the scan and shows partial results
+   - **Clear Scan Cache**: Manually clears cached search results
 
 ### Understanding Results
 
@@ -70,6 +72,13 @@ The plugin performs the following steps:
 5. **Cache Results**: Stores search results for 1 hour to improve performance on subsequent batches
 6. **Attach**: Updates the attachment's `post_parent` to link it to the found post
 7. **Continue**: Processes next batch until all orphaned attachments are scanned or user stops
+
+### Cache Management
+
+- **Automatic Expiration**: Positive results cached for 1 hour, negative results for 30 minutes
+- **Manual Clearing**: Click "Clear Scan Cache" button to clear all cached results
+- **When to Clear**: If you've updated post content since the last scan and want fresh results
+- **Deactivation**: All caches automatically cleared when plugin is deactivated
 
 ### Performance Optimizations
 

@@ -31,6 +31,7 @@ class Attach_Orphaned_Images {
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
 		add_action( 'wp_ajax_attach_orphaned_images', array( $this, 'ajax_attach_images' ) );
+		add_action( 'wp_ajax_clear_attachment_cache', array( $this, 'ajax_clear_cache' ) );
 	}
 
 	/**
@@ -107,8 +108,14 @@ class Attach_Orphaned_Images {
 				<button type="button" id="stop-button" class="button hidden" aria-label="<?php esc_attr_e( 'Stop processing', 'attach-images' ); ?>">
 					<?php esc_html_e( 'Stop', 'attach-images' ); ?>
 				</button>
+				<button type="button" id="clear-cache-button" class="button" aria-describedby="clear-cache-description">
+					<?php esc_html_e( 'Clear Scan Cache', 'attach-images' ); ?>
+				</button>
 				<span id="scan-description" class="screen-reader-text">
 					<?php esc_html_e( 'Scans orphaned attachments and attempts to attach them to posts that reference them. Preview mode shows what would happen without making changes.', 'attach-images' ); ?>
+				</span>
+				<span id="clear-cache-description" class="screen-reader-text">
+					<?php esc_html_e( 'Clears cached scan results. Use this if post content has changed since the last scan.', 'attach-images' ); ?>
 				</span>
 			</div>
 			</div>			
@@ -349,6 +356,40 @@ class Attach_Orphaned_Images {
 
 		return null;
 	}
+
+	/**
+	 * AJAX handler for clearing cache.
+	 */
+	public function ajax_clear_cache() {
+		check_ajax_referer( 'attach_orphaned_images_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Insufficient permissions', 'attach-images' ),
+				)
+			);
+		}
+
+		global $wpdb;
+		
+		// Delete all transients starting with 'attach_img_'.
+		$deleted = $wpdb->query(
+			"DELETE FROM {$wpdb->options}
+			WHERE option_name LIKE '\_transient\_attach\_img\_%'
+			OR option_name LIKE '\_transient\_timeout\_attach\_img\_%'"
+		);
+
+		wp_send_json_success(
+			array(
+				'message' => sprintf(
+					/* translators: %d: number of cache entries cleared */
+					__( 'Cache cleared successfully. %d entries removed.', 'attach-images' ),
+					$deleted
+				),
+			)
+		);
+	}
 }
 
 // Initialize the plugin.
@@ -363,7 +404,13 @@ add_action( 'plugins_loaded', 'attach_orphaned_images_init' );
  * Note: For complete uninstall cleanup, create an uninstall.php file.
  */
 function attach_orphaned_images_deactivate() {
-	// Clean up any transients or temporary data.
-	delete_transient( 'attach_orphaned_images_cache' );
+	global $wpdb;
+	
+	// Clean up all attachment search cache transients.
+	$wpdb->query(
+		"DELETE FROM {$wpdb->options}
+		WHERE option_name LIKE '\_transient\_attach\_img\_%'
+		OR option_name LIKE '\_transient\_timeout\_attach\_img\_%'"
+	);
 }
 register_deactivation_hook( __FILE__, 'attach_orphaned_images_deactivate' );

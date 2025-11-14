@@ -57,3 +57,15 @@ msgstr ""
 #: attach_images.php:109
 msgid "Stop"
 msgstr ""
+
+#: attach_images.php:112
+msgid "Clear Scan Cache"
+msgstr ""
+
+#: attach_images.php:116
+msgid "Clears cached scan results. Use this if post content has changed since the last scan."
+msgstr ""
+
+#: attach_images.php:395
+msgid "Cache cleared successfully. %d entries removed."
+msgstr ""

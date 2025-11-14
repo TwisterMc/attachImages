@@ -62,3 +62,15 @@ msgstr "Detener procesamiento"
 #: attach_images.php:109
 msgid "Stop"
 msgstr "Detener"
+
+#: attach_images.php:112
+msgid "Clear Scan Cache"
+msgstr "Limpiar Caché de Escaneo"
+
+#: attach_images.php:116
+msgid "Clears cached scan results. Use this if post content has changed since the last scan."
+msgstr "Limpia los resultados de escaneo en caché. Use esto si el contenido de las entradas ha cambiado desde el último escaneo."
+
+#: attach_images.php:395
+msgid "Cache cleared successfully. %d entries removed."
+msgstr "Caché limpiado exitosamente. %d entradas eliminadas."

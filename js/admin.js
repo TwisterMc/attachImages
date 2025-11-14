@@ -4,6 +4,7 @@ jQuery(document).ready(function ($) {
   var $scanButton = $("#scan-button");
   var $previewButton = $("#preview-button");
   var $stopButton = $("#stop-button");
+  var $clearCacheButton = $("#clear-cache-button");
   var $progress = $("#attach-images-progress");
   var $progressFill = $(".progress-fill");
   var $progressText = $(".progress-text");
@@ -27,6 +28,36 @@ jQuery(document).ready(function ($) {
     isCancelled = true;
     $stopButton.prop("disabled", true);
     $progressText.text("Stopping... Please wait.");
+  });
+
+  // Clear cache button handler
+  $clearCacheButton.on("click", function () {
+    if (!confirm("Are you sure you want to clear all scan caches?")) {
+      return;
+    }
+
+    $clearCacheButton.prop("disabled", true);
+
+    $.ajax({
+      url: attachImagesData.ajax_url,
+      type: "POST",
+      data: {
+        action: "clear_attachment_cache",
+        nonce: attachImagesData.nonce,
+      },
+      success: function (response) {
+        if (response.success) {
+          showAccessibleNotice(response.data.message, "success");
+        } else {
+          showAccessibleError(response.data.message || "Failed to clear cache");
+        }
+        $clearCacheButton.prop("disabled", false);
+      },
+      error: function () {
+        showAccessibleError("Error clearing cache");
+        $clearCacheButton.prop("disabled", false);
+      },
+    });
   });
 
   var aggregateResults = {
@@ -293,20 +324,32 @@ jQuery(document).ready(function ($) {
   }
 
   function showAccessibleError(message) {
-    // Create accessible error notice
-    var $errorNotice = $(
-      '<div class="notice notice-error is-dismissible" role="alert"><p><strong>Error:</strong> ' +
+    showAccessibleNotice(message, "error");
+  }
+
+  function showAccessibleNotice(message, type) {
+    type = type || "error";
+    var noticeClass = "notice-" + type;
+    var prefix = type === "error" ? "Error" : "Success";
+
+    // Create accessible notice
+    var $notice = $(
+      '<div class="notice ' +
+        noticeClass +
+        ' is-dismissible" role="alert"><p><strong>' +
+        prefix +
+        ":</strong> " +
         escapeHtml(message) +
         "</p></div>"
     );
 
     // Insert after header and focus
-    $(".attach-images-header").after($errorNotice);
-    $errorNotice.attr("tabindex", "-1").focus();
+    $(".attach-images-header").after($notice);
+    $notice.attr("tabindex", "-1").focus();
 
     // Auto-dismiss after 10 seconds
     setTimeout(function () {
-      $errorNotice.fadeOut(function () {
+      $notice.fadeOut(function () {
         $(this).remove();
       });
     }, 10000);
