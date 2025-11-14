@@ -86,6 +86,7 @@ jQuery(document).ready(function ($) {
       attached: 0,
       not_found: 0,
       details: [],
+      processed_ids: [],
       dry_run: dryRun,
     };
 
