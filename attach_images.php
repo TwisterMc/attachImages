@@ -3,7 +3,7 @@
  * Plugin Name: Attach Orphaned Images
  * Plugin URI: https://github.com/TwisterMc/attachImages
  * Description: Scans attachments with no parent and attaches them to posts that contain their filename/URL
- * Version: 1.0.0.8
+ * Version: 1.0.0.9
  * Author: Thomas McMahon
  * Author URI: https://www.twistermc.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ class Attach_Orphaned_Images {
 	/**
 	 * Plugin version.
 	 */
-	const VERSION = '1.0.0.8';
+	const VERSION = '1.0.0.9';
 
 	/**
 	 * Constructor.
@@ -155,11 +155,13 @@ class Attach_Orphaned_Images {
 		$offset = isset( $_POST['offset'] ) ? absint( $_POST['offset'] ) : 0;
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked above.
 		$limit = isset( $_POST['limit'] ) ? absint( $_POST['limit'] ) : 50;
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked above.
+		$processed_ids = isset( $_POST['processed_ids'] ) && is_array( $_POST['processed_ids'] ) ? array_map( 'absint', $_POST['processed_ids'] ) : array();
 
 		// Increase execution time for batch processing.
 		@set_time_limit( 300 );
 
-		$results = $this->scan_and_attach_images( $dry_run, $offset, $limit );
+		$results = $this->scan_and_attach_images( $dry_run, $offset, $limit, $processed_ids );
 
 		wp_send_json_success( $results );
 	}
@@ -221,10 +223,18 @@ class Attach_Orphaned_Images {
 		$batch_count             = count( $orphaned_attachments );
 		$results['batch_count']  = $batch_count;
 		$results['next_offset']  = $dry_run ? ( $offset + $limit ) : 0;
-		$results['total_processed'] = $offset + $batch_count;
 		
-		// Determine has_more after processing - will be updated below if needed
-		$results['has_more'] = $batch_count >= $limit;
+		// Calculate total processed including previous batches
+		$total_already_processed = count( $processed_ids );
+		$results['total_processed'] = $total_already_processed + $batch_count;
+		
+		// Determine has_more
+		// Stop if: no items returned, OR we've processed >= total orphaned count
+		if ( $batch_count === 0 || $results['total_processed'] >= $orphaned_count ) {
+			$results['has_more'] = false;
+		} else {
+			$results['has_more'] = true;
+		}
 
 		foreach ( $orphaned_attachments as $attachment ) {
 			// Track this ID as processed
@@ -270,12 +280,6 @@ class Attach_Orphaned_Images {
 					'status'          => 'not_found',
 				);
 			}
-		}
-
-		// In attach mode, stop if nothing was attached AND we got fewer items than requested
-		// This prevents infinite loop while still allowing processing of all batches
-		if ( ! $dry_run && $results['attached'] === 0 && $batch_count < $limit ) {
-			$results['has_more'] = false;
 		}
 
 		return $results;
