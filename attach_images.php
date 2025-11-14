@@ -3,7 +3,7 @@
  * Plugin Name: Attach Orphaned Images
  * Plugin URI: https://github.com/TwisterMc/attachImages
  * Description: Scans attachments with no parent and attaches them to posts that contain their filename/URL
- * Version: 1.0.0.5
+ * Version: 1.0.0.6
  * Author: Thomas McMahon
  * Author URI: https://www.twistermc.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ class Attach_Orphaned_Images {
 	/**
 	 * Plugin version.
 	 */
-	const VERSION = '1.0.0.5';
+	const VERSION = '1.0.0.6';
 
 	/**
 	 * Constructor.
@@ -172,7 +172,7 @@ class Attach_Orphaned_Images {
 	 * @param int  $limit   The limit for batch processing.
 	 * @return array Results of the scan operation.
 	 */
-	public function scan_and_attach_images( $dry_run = false, $offset = 0, $limit = 50 ) {
+	public function scan_and_attach_images( $dry_run = false, $offset = 0, $limit = 50, $processed_ids = array() ) {
 		$results = array(
 			'total_orphaned' => 0,
 			'attached'       => 0,
@@ -183,6 +183,7 @@ class Attach_Orphaned_Images {
 			'limit'          => $limit,
 			'has_more'       => false,
 			'total_processed' => 0,
+			'processed_ids'  => array(),
 		);
 
 		// First get total count of orphaned attachments.
@@ -198,18 +199,24 @@ class Attach_Orphaned_Images {
 		$results['total_orphaned'] = $orphaned_count;
 
 		// Get attachments with no parent in batches.
-		// Always use offset 0 because attached images are removed from the pool.
-		$orphaned_attachments = get_posts(
-			array(
-				'post_type'      => 'attachment',
-				'post_parent'    => 0,
-				'posts_per_page' => $limit,
-				'offset'         => $dry_run ? $offset : 0,
-				'post_status'    => 'inherit',
-				'orderby'        => 'ID',
-				'order'          => 'ASC',
-			)
+		// In attach mode: use offset 0 but exclude already processed IDs
+		// In dry_run mode: use normal offset
+		$query_args = array(
+			'post_type'      => 'attachment',
+			'post_parent'    => 0,
+			'posts_per_page' => $limit,
+			'offset'         => $dry_run ? $offset : 0,
+			'post_status'    => 'inherit',
+			'orderby'        => 'ID',
+			'order'          => 'ASC',
 		);
+		
+		// In attach mode, exclude IDs we've already processed to prevent infinite loop
+		if ( ! $dry_run && ! empty( $processed_ids ) ) {
+			$query_args['post__not_in'] = $processed_ids;
+		}
+		
+		$orphaned_attachments = get_posts( $query_args );
 
 		$batch_count             = count( $orphaned_attachments );
 		$results['batch_count']  = $batch_count;
@@ -220,6 +227,9 @@ class Attach_Orphaned_Images {
 		$results['has_more'] = $batch_count >= $limit;
 
 		foreach ( $orphaned_attachments as $attachment ) {
+			// Track this ID as processed
+			$results['processed_ids'][] = $attachment->ID;
+			
 			$attachment_url      = wp_get_attachment_url( $attachment->ID );
 			$attachment_filename = basename( $attachment_url );
 

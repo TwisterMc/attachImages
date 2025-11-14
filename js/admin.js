@@ -60,12 +60,13 @@ jQuery(document).ready(function ($) {
     });
   });
 
-  var aggregateResults = {
+  // Aggregate results from all batches
+  aggregateResults = {
     total_orphaned: 0,
     attached: 0,
     not_found: 0,
     details: [],
-    dry_run: false,
+    processed_ids: [],
   };
 
   function runScan(dryRun) {
@@ -119,6 +120,7 @@ jQuery(document).ready(function ($) {
         dry_run: dryRun ? "true" : "false",
         offset: offset,
         limit: 50,
+        processed_ids: aggregateResults.processed_ids,
       },
       success: function (response) {
         if (response.success) {
@@ -135,6 +137,11 @@ jQuery(document).ready(function ($) {
           aggregateResults.details = aggregateResults.details.concat(
             data.details
           );
+          // Track processed IDs to avoid infinite loops
+          if (data.processed_ids) {
+            aggregateResults.processed_ids =
+              aggregateResults.processed_ids.concat(data.processed_ids);
+          }
 
           // Update progress bar
           // For attach mode, calculate based on cumulative processed vs initial total
