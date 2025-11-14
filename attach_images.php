@@ -3,7 +3,7 @@
  * Plugin Name: Attach Orphaned Images
  * Plugin URI: https://github.com/TwisterMc/attachImages
  * Description: Scans attachments with no parent and attaches them to posts that contain their filename/URL
- * Version: 1.0.0.3
+ * Version: 1.0.0.4
  * Author: Thomas McMahon
  * Author URI: https://www.twistermc.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ class Attach_Orphaned_Images {
 	/**
 	 * Plugin version.
 	 */
-	const VERSION = '1.0.0.3';
+	const VERSION = '1.0.0.4';
 
 	/**
 	 * Constructor.
@@ -213,11 +213,11 @@ class Attach_Orphaned_Images {
 
 		$batch_count             = count( $orphaned_attachments );
 		$results['batch_count']  = $batch_count;
-		$results['next_offset']  = $dry_run ? ( $offset + $limit ) : ( $offset + $batch_count );
+		$results['next_offset']  = $dry_run ? ( $offset + $limit ) : 0;
 		$results['total_processed'] = $offset + $batch_count;
-		// For attach mode: has_more if we got a full batch AND haven't processed all orphans
-		// For dry_run mode: has_more if we got a full batch
-		$results['has_more']     = $batch_count >= $limit && ( $dry_run || ( $offset + $batch_count ) < $orphaned_count );
+		
+		// Determine has_more after processing - will be updated below if needed
+		$results['has_more'] = $batch_count >= $limit;
 
 		foreach ( $orphaned_attachments as $attachment ) {
 			$attachment_url      = wp_get_attachment_url( $attachment->ID );
@@ -260,6 +260,11 @@ class Attach_Orphaned_Images {
 					'status'          => 'not_found',
 				);
 			}
+		}
+
+		// In attach mode, stop if nothing was attached (prevents infinite loop)
+		if ( ! $dry_run && $results['attached'] === 0 && $results['has_more'] ) {
+			$results['has_more'] = false;
 		}
 
 		return $results;
