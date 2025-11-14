@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Attach Orphaned Images
- * Plugin URI: https://github.com/twistermc/
+ * Plugin URI: https://github.com/TwisterMc/attachImages
  * Description: Scans attachments with no parent and attaches them to posts that contain their filename/URL
  * Version: 1.0.0
  * Author: Thomas McMahon

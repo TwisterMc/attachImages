@@ -133,7 +133,7 @@ WHERE post_type IN ('post', 'page', 'portfolio', 'product')
 
 ## Support
 
-For issues, questions, or contributions, please visit the [GitHub repository](https://github.com/yourusername/attach-images).
+For issues, questions, or contributions, please visit the [GitHub repository](https://github.com/TwisterMc/attachImages).
 
 ## License
 
