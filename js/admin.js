@@ -29,8 +29,8 @@ jQuery(document).ready(function ($) {
 
   function runScan(dryRun) {
     // Disable buttons
-    $scanButton.prop("disabled", true);
-    $previewButton.prop("disabled", true);
+    $scanButton.prop("disabled", true).attr("aria-busy", "true");
+    $previewButton.prop("disabled", true).attr("aria-busy", "true");
 
     // Reset aggregate results
     aggregateResults = {
@@ -42,9 +42,10 @@ jQuery(document).ready(function ($) {
     };
 
     // Show progress
-    $progress.removeClass("hidden");
-    $results.addClass("hidden");
+    $progress.removeClass("hidden").attr("aria-hidden", "false");
+    $results.addClass("hidden").attr("aria-hidden", "true");
     $progressFill.css("width", "0%");
+    $(".progress-bar").attr("aria-valuenow", "0");
     $progressText.text(
       dryRun
         ? "Scanning attachments (preview mode)..."
@@ -86,6 +87,7 @@ jQuery(document).ready(function ($) {
           var processed = offset + data.batch_count;
           var progress = Math.min(100, (processed / data.total_orphaned) * 100);
           $progressFill.css("width", progress + "%");
+          $(".progress-bar").attr("aria-valuenow", Math.round(progress));
           $progressText.text(
             (dryRun ? "Scanning: " : "Processing: ") +
               processed +
@@ -101,33 +103,37 @@ jQuery(document).ready(function ($) {
           } else {
             // All batches complete
             $progressFill.css("width", "100%");
+            $(".progress-bar").attr("aria-valuenow", "100");
             setTimeout(function () {
-              $progress.addClass("hidden");
+              $progress.addClass("hidden").attr("aria-hidden", "true");
               displayResults(aggregateResults);
 
-              // Re-enable buttons
-              $scanButton.prop("disabled", false);
-              $previewButton.prop("disabled", false);
+              // Re-enable buttons and remove busy state
+              $scanButton
+                .prop("disabled", false)
+                .removeAttr("aria-busy")
+                .focus();
+              $previewButton.prop("disabled", false).removeAttr("aria-busy");
             }, 500);
           }
         } else {
-          $progress.addClass("hidden");
-          alert(
-            "Error: " + (response.data.message || "Unknown error occurred")
+          $progress.addClass("hidden").attr("aria-hidden", "true");
+          showAccessibleError(
+            response.data.message || "Unknown error occurred"
           );
 
-          // Re-enable buttons
-          $scanButton.prop("disabled", false);
-          $previewButton.prop("disabled", false);
+          // Re-enable buttons and remove busy state
+          $scanButton.prop("disabled", false).removeAttr("aria-busy");
+          $previewButton.prop("disabled", false).removeAttr("aria-busy");
         }
       },
       error: function (xhr, status, error) {
-        $progress.addClass("hidden");
-        alert("Error: " + error);
+        $progress.addClass("hidden").attr("aria-hidden", "true");
+        showAccessibleError("Error: " + error);
 
-        // Re-enable buttons
-        $scanButton.prop("disabled", false);
-        $previewButton.prop("disabled", false);
+        // Re-enable buttons and remove busy state
+        $scanButton.prop("disabled", false).removeAttr("aria-busy");
+        $previewButton.prop("disabled", false).removeAttr("aria-busy");
       },
     });
   }
@@ -166,12 +172,12 @@ jQuery(document).ready(function ($) {
 
     // Display details table
     if (data.details && data.details.length > 0) {
-      html += '<table class="results-table">';
+      html += '<table class="results-table" role="table">';
       html += "<thead>";
       html += "<tr>";
-      html += "<th>Attachment</th>";
-      html += "<th>Post</th>";
-      html += "<th>Status</th>";
+      html += '<th scope="col">Attachment</th>';
+      html += '<th scope="col">Post</th>';
+      html += '<th scope="col">Status</th>';
       html += "</tr>";
       html += "</thead>";
       html += "<tbody>";
@@ -184,7 +190,7 @@ jQuery(document).ready(function ($) {
         html +=
           '<a href="' +
           item.attachment_url +
-          '" target="_blank" class="attachment-link">';
+          '" target="_blank" rel="noopener noreferrer" class="attachment-link">';
         html += escapeHtml(item.attachment_title || "Untitled");
         html += "</a>";
         html += "<br><small>ID: " + item.attachment_id + "</small>";
@@ -196,7 +202,7 @@ jQuery(document).ready(function ($) {
           html +=
             '<a href="' +
             item.post_url +
-            '" target="_blank" class="post-link">';
+            '" target="_blank" rel="noopener noreferrer" class="post-link">';
           html += escapeHtml(item.post_title);
           html += "</a>";
           html += "<br><small>ID: " + item.post_id + "</small>";
@@ -240,7 +246,30 @@ jQuery(document).ready(function ($) {
     }
 
     $resultsContent.html(html);
-    $results.removeClass("hidden");
+    $results.removeClass("hidden").attr("aria-hidden", "false");
+
+    // Set focus to results heading for screen readers
+    $results.find("h2").attr("tabindex", "-1").focus();
+  }
+
+  function showAccessibleError(message) {
+    // Create accessible error notice
+    var $errorNotice = $(
+      '<div class="notice notice-error is-dismissible" role="alert"><p><strong>Error:</strong> ' +
+        escapeHtml(message) +
+        "</p></div>"
+    );
+
+    // Insert after header and focus
+    $(".attach-images-header").after($errorNotice);
+    $errorNotice.attr("tabindex", "-1").focus();
+
+    // Auto-dismiss after 10 seconds
+    setTimeout(function () {
+      $errorNotice.fadeOut(function () {
+        $(this).remove();
+      });
+    }, 10000);
   }
 
   function escapeHtml(text) {

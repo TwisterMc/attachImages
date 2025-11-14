@@ -94,30 +94,29 @@ class Attach_Orphaned_Images {
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 
 			<div class="attach-images-container">
-				<div class="attach-images-header">
-					<p><?php esc_html_e( 'This tool will scan for attachments that have no parent post and attempt to attach them to posts that reference them.', 'attach-images' ); ?></p>
+			<div class="attach-images-header">
+				<p><?php esc_html_e( 'This tool will scan for attachments that have no parent post and attempt to attach them to posts that reference them.', 'attach-images' ); ?></p>
 
-					<div class="attach-images-actions">
-						<button id="scan-button" class="button button-primary">
-							<?php esc_html_e( 'Scan and Attach Images', 'attach-images' ); ?>
-						</button>
-						<button id="preview-button" class="button">
-							<?php esc_html_e( 'Preview Only (Dry Run)', 'attach-images' ); ?>
-						</button>
-					</div>
+				<div class="attach-images-actions">
+					<button type="button" id="scan-button" class="button button-primary" aria-describedby="scan-description">
+						<?php esc_html_e( 'Scan and Attach Images', 'attach-images' ); ?>
+					</button>
+					<button type="button" id="preview-button" class="button" aria-describedby="scan-description">
+						<?php esc_html_e( 'Preview Only (Dry Run)', 'attach-images' ); ?>
+					</button>
+					<span id="scan-description" class="screen-reader-text">
+						<?php esc_html_e( 'Scans orphaned attachments and attempts to attach them to posts that reference them. Preview mode shows what would happen without making changes.', 'attach-images' ); ?>
+					</span>
 				</div>
-
-				<div id="attach-images-progress" class="hidden">
-					<div class="progress-bar">
-						<div class="progress-fill"></div>
-					</div>
-					<p class="progress-text"></p>
+			</div>			<div id="attach-images-progress" class="hidden" aria-hidden="true">
+				<div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="<?php esc_attr_e( 'Scan progress', 'attach-images' ); ?>">
+					<div class="progress-fill"></div>
 				</div>
-
-				<div id="attach-images-results" class="hidden">
-					<h2><?php esc_html_e( 'Results', 'attach-images' ); ?></h2>
-					<div class="results-content"></div>
-				</div>
+				<p class="progress-text" aria-live="polite" aria-atomic="true"></p>
+			</div>			<div id="attach-images-results" class="hidden" aria-hidden="true" aria-live="polite">
+				<h2><?php esc_html_e( 'Results', 'attach-images' ); ?></h2>
+				<div class="results-content"></div>
+			</div>
 			</div>
 		</div>
 		<?php
