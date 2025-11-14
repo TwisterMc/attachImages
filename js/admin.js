@@ -139,9 +139,13 @@ jQuery(document).ready(function ($) {
           // Update progress bar
           // For attach mode, calculate based on cumulative processed vs initial total
           // For dry run mode, use offset
-          var totalProcessed = aggregateResults.attached + aggregateResults.not_found;
+          var totalProcessed =
+            aggregateResults.attached + aggregateResults.not_found;
           var processed = dryRun ? offset + data.batch_count : totalProcessed;
-          var progress = Math.min(100, (processed / aggregateResults.total_orphaned) * 100);
+          var progress = Math.min(
+            100,
+            (processed / aggregateResults.total_orphaned) * 100
+          );
           $progressFill.css("width", progress + "%");
           $(".progress-bar").attr("aria-valuenow", Math.round(progress));
           $progressText.text(

@@ -3,7 +3,7 @@
  * Plugin Name: Attach Orphaned Images
  * Plugin URI: https://github.com/TwisterMc/attachImages
  * Description: Scans attachments with no parent and attaches them to posts that contain their filename/URL
- * Version: 1.0.0.2
+ * Version: 1.0.0.3
  * Author: Thomas McMahon
  * Author URI: https://www.twistermc.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ class Attach_Orphaned_Images {
 	/**
 	 * Plugin version.
 	 */
-	const VERSION = '1.0.0.2';
+	const VERSION = '1.0.0.3';
 
 	/**
 	 * Constructor.
@@ -182,6 +182,7 @@ class Attach_Orphaned_Images {
 			'offset'         => $offset,
 			'limit'          => $limit,
 			'has_more'       => false,
+			'total_processed' => 0,
 		);
 
 		// First get total count of orphaned attachments.
@@ -210,9 +211,13 @@ class Attach_Orphaned_Images {
 			)
 		);
 
-		$results['has_more']     = count( $orphaned_attachments ) >= $limit;
-		$results['batch_count']  = count( $orphaned_attachments );
-		$results['next_offset']  = $dry_run ? ( $offset + $limit ) : 0;
+		$batch_count             = count( $orphaned_attachments );
+		$results['batch_count']  = $batch_count;
+		$results['next_offset']  = $dry_run ? ( $offset + $limit ) : ( $offset + $batch_count );
+		$results['total_processed'] = $offset + $batch_count;
+		// For attach mode: has_more if we got a full batch AND haven't processed all orphans
+		// For dry_run mode: has_more if we got a full batch
+		$results['has_more']     = $batch_count >= $limit && ( $dry_run || ( $offset + $batch_count ) < $orphaned_count );
 
 		foreach ( $orphaned_attachments as $attachment ) {
 			$attachment_url      = wp_get_attachment_url( $attachment->ID );
