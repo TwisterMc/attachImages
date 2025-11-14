@@ -3,7 +3,7 @@
  * Plugin Name: Attach Orphaned Images
  * Plugin URI: https://github.com/TwisterMc/attachImages
  * Description: Scans attachments with no parent and attaches them to posts that contain their filename/URL
- * Version: 1.0.0.4
+ * Version: 1.0.0.5
  * Author: Thomas McMahon
  * Author URI: https://www.twistermc.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ class Attach_Orphaned_Images {
 	/**
 	 * Plugin version.
 	 */
-	const VERSION = '1.0.0.4';
+	const VERSION = '1.0.0.5';
 
 	/**
 	 * Constructor.
@@ -262,8 +262,9 @@ class Attach_Orphaned_Images {
 			}
 		}
 
-		// In attach mode, stop if nothing was attached (prevents infinite loop)
-		if ( ! $dry_run && $results['attached'] === 0 && $results['has_more'] ) {
+		// In attach mode, stop if nothing was attached AND we got fewer items than requested
+		// This prevents infinite loop while still allowing processing of all batches
+		if ( ! $dry_run && $results['attached'] === 0 && $batch_count < $limit ) {
 			$results['has_more'] = false;
 		}
 
