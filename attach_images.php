@@ -310,7 +310,6 @@ class Attach_Orphaned_Images {
 		// Search in post content with combined query.
 		$query = "SELECT ID, post_title FROM {$wpdb->posts}
 				WHERE post_type IN ('post', 'page')
-				AND post_status = 'publish'
 				AND ({$where_clause})
 				LIMIT 1";
 
@@ -334,7 +333,6 @@ class Attach_Orphaned_Images {
 				FROM {$wpdb->posts} p
 				INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
 				WHERE p.post_type IN ('post', 'page')
-				AND p.post_status = 'publish'
 				AND ({$where_clause})
 				LIMIT 1";
 
