@@ -3,7 +3,7 @@
  * Plugin Name: Attach Orphaned Images
  * Plugin URI: https://github.com/TwisterMc/attachImages
  * Description: Scans attachments with no parent and attaches them to posts that contain their filename/URL
- * Version: 1.0.0.1
+ * Version: 1.0.0.2
  * Author: Thomas McMahon
  * Author URI: https://www.twistermc.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ class Attach_Orphaned_Images {
 	/**
 	 * Plugin version.
 	 */
-	const VERSION = '1.0.0.1';
+	const VERSION = '1.0.0.2';
 
 	/**
 	 * Constructor.
@@ -197,21 +197,22 @@ class Attach_Orphaned_Images {
 		$results['total_orphaned'] = $orphaned_count;
 
 		// Get attachments with no parent in batches.
+		// Always use offset 0 because attached images are removed from the pool.
 		$orphaned_attachments = get_posts(
 			array(
 				'post_type'      => 'attachment',
 				'post_parent'    => 0,
 				'posts_per_page' => $limit,
-				'offset'         => $offset,
+				'offset'         => $dry_run ? $offset : 0,
 				'post_status'    => 'inherit',
 				'orderby'        => 'ID',
 				'order'          => 'ASC',
 			)
 		);
 
-		$results['has_more']     = ( $offset + $limit ) < $orphaned_count;
+		$results['has_more']     = count( $orphaned_attachments ) >= $limit;
 		$results['batch_count']  = count( $orphaned_attachments );
-		$results['next_offset']  = $offset + $limit;
+		$results['next_offset']  = $dry_run ? ( $offset + $limit ) : 0;
 
 		foreach ( $orphaned_attachments as $attachment ) {
 			$attachment_url      = wp_get_attachment_url( $attachment->ID );
