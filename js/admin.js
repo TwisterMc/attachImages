@@ -19,10 +19,27 @@ jQuery(document).ready(function ($) {
     runScan(true);
   });
 
+  var aggregateResults = {
+    total_orphaned: 0,
+    attached: 0,
+    not_found: 0,
+    details: [],
+    dry_run: false,
+  };
+
   function runScan(dryRun) {
     // Disable buttons
     $scanButton.prop("disabled", true);
     $previewButton.prop("disabled", true);
+
+    // Reset aggregate results
+    aggregateResults = {
+      total_orphaned: 0,
+      attached: 0,
+      not_found: 0,
+      details: [],
+      dry_run: dryRun,
+    };
 
     // Show progress
     $progress.removeClass("hidden");
@@ -34,18 +51,11 @@ jQuery(document).ready(function ($) {
         : "Scanning and attaching images..."
     );
 
-    // Animate progress bar
-    var progressInterval = setInterval(function () {
-      var currentWidth =
-        (parseFloat($progressFill.css("width")) /
-          parseFloat($progressFill.parent().css("width"))) *
-        100;
-      if (currentWidth < 90) {
-        $progressFill.css("width", currentWidth + 10 + "%");
-      }
-    }, 200);
+    // Start batch processing from offset 0
+    processBatch(dryRun, 0);
+  }
 
-    // Make AJAX request
+  function processBatch(dryRun, offset) {
     $.ajax({
       url: attachImagesData.ajax_url,
       type: "POST",
@@ -53,29 +63,65 @@ jQuery(document).ready(function ($) {
         action: "attach_orphaned_images",
         nonce: attachImagesData.nonce,
         dry_run: dryRun ? "true" : "false",
+        offset: offset,
+        limit: 50,
       },
       success: function (response) {
-        clearInterval(progressInterval);
-        $progressFill.css("width", "100%");
+        if (response.success) {
+          var data = response.data;
 
-        setTimeout(function () {
-          $progress.addClass("hidden");
-
-          if (response.success) {
-            displayResults(response.data);
-          } else {
-            alert(
-              "Error: " + (response.data.message || "Unknown error occurred")
-            );
+          // Update total count (only set once)
+          if (aggregateResults.total_orphaned === 0) {
+            aggregateResults.total_orphaned = data.total_orphaned;
           }
+
+          // Aggregate results
+          aggregateResults.attached += data.attached;
+          aggregateResults.not_found += data.not_found;
+          aggregateResults.details = aggregateResults.details.concat(
+            data.details
+          );
+
+          // Update progress bar
+          var processed = offset + data.batch_count;
+          var progress = Math.min(100, (processed / data.total_orphaned) * 100);
+          $progressFill.css("width", progress + "%");
+          $progressText.text(
+            (dryRun ? "Scanning: " : "Processing: ") +
+              processed +
+              " of " +
+              data.total_orphaned +
+              " attachments..."
+          );
+
+          // Check if there are more batches to process
+          if (data.has_more) {
+            // Process next batch
+            processBatch(dryRun, data.next_offset);
+          } else {
+            // All batches complete
+            $progressFill.css("width", "100%");
+            setTimeout(function () {
+              $progress.addClass("hidden");
+              displayResults(aggregateResults);
+
+              // Re-enable buttons
+              $scanButton.prop("disabled", false);
+              $previewButton.prop("disabled", false);
+            }, 500);
+          }
+        } else {
+          $progress.addClass("hidden");
+          alert(
+            "Error: " + (response.data.message || "Unknown error occurred")
+          );
 
           // Re-enable buttons
           $scanButton.prop("disabled", false);
           $previewButton.prop("disabled", false);
-        }, 500);
+        }
       },
       error: function (xhr, status, error) {
-        clearInterval(progressInterval);
         $progress.addClass("hidden");
         alert("Error: " + error);
 

@@ -140,8 +140,15 @@ class Attach_Orphaned_Images {
 		// Sanitize input.
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked above.
 		$dry_run = isset( $_POST['dry_run'] ) && 'true' === sanitize_text_field( wp_unslash( $_POST['dry_run'] ) );
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked above.
+		$offset = isset( $_POST['offset'] ) ? absint( $_POST['offset'] ) : 0;
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked above.
+		$limit = isset( $_POST['limit'] ) ? absint( $_POST['limit'] ) : 50;
 
-		$results = $this->scan_and_attach_images( $dry_run );
+		// Increase execution time for batch processing.
+		@set_time_limit( 300 );
+
+		$results = $this->scan_and_attach_images( $dry_run, $offset, $limit );
 
 		wp_send_json_success( $results );
 	}
@@ -150,28 +157,50 @@ class Attach_Orphaned_Images {
 	 * Main function to scan and attach images.
 	 *
 	 * @param bool $dry_run Whether to perform a dry run without making changes.
+	 * @param int  $offset  The offset for batch processing.
+	 * @param int  $limit   The limit for batch processing.
 	 * @return array Results of the scan operation.
 	 */
-	public function scan_and_attach_images( $dry_run = false ) {
+	public function scan_and_attach_images( $dry_run = false, $offset = 0, $limit = 50 ) {
 		$results = array(
 			'total_orphaned' => 0,
 			'attached'       => 0,
 			'not_found'      => 0,
 			'details'        => array(),
 			'dry_run'        => $dry_run,
+			'offset'         => $offset,
+			'limit'          => $limit,
+			'has_more'       => false,
 		);
 
-		// Get all attachments with no parent.
+		// First get total count of orphaned attachments.
+		$total_count = wp_count_posts( 'attachment' );
+		global $wpdb;
+		$orphaned_count = (int) $wpdb->get_var(
+			"SELECT COUNT(*) FROM {$wpdb->posts}
+			WHERE post_type = 'attachment'
+			AND post_parent = 0
+			AND post_status = 'inherit'"
+		);
+
+		$results['total_orphaned'] = $orphaned_count;
+
+		// Get attachments with no parent in batches.
 		$orphaned_attachments = get_posts(
 			array(
 				'post_type'      => 'attachment',
 				'post_parent'    => 0,
-				'posts_per_page' => -1,
+				'posts_per_page' => $limit,
+				'offset'         => $offset,
 				'post_status'    => 'inherit',
+				'orderby'        => 'ID',
+				'order'          => 'ASC',
 			)
 		);
 
-		$results['total_orphaned'] = count( $orphaned_attachments );
+		$results['has_more']     = ( $offset + $limit ) < $orphaned_count;
+		$results['batch_count']  = count( $orphaned_attachments );
+		$results['next_offset']  = $offset + $limit;
 
 		foreach ( $orphaned_attachments as $attachment ) {
 			$attachment_url      = wp_get_attachment_url( $attachment->ID );
@@ -230,6 +259,13 @@ class Attach_Orphaned_Images {
 	private function find_post_with_attachment( $attachment_id, $attachment_url, $filename ) {
 		global $wpdb;
 
+		// Check cache first.
+		$cache_key = 'attach_img_' . $attachment_id;
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return $cached ? (object) $cached : null;
+		}
+
 		// Get various URL formats to search for.
 		$search_patterns = array();
 
@@ -249,57 +285,66 @@ class Attach_Orphaned_Images {
 		// Filename only.
 		$search_patterns[] = $filename;
 
-		// Also check for different sizes of the image.
+		// Limit image size checks to the most common ones.
 		$attachment_metadata = wp_get_attachment_metadata( $attachment_id );
 		if ( isset( $attachment_metadata['sizes'] ) && is_array( $attachment_metadata['sizes'] ) ) {
-			foreach ( $attachment_metadata['sizes'] as $size_data ) {
-				if ( isset( $size_data['file'] ) ) {
-					$search_patterns[] = $size_data['file'];
+			$priority_sizes = array( 'large', 'medium', 'thumbnail' );
+			foreach ( $priority_sizes as $size_name ) {
+				if ( isset( $attachment_metadata['sizes'][ $size_name ]['file'] ) ) {
+					$search_patterns[] = $attachment_metadata['sizes'][ $size_name ]['file'];
 				}
 			}
 		}
 
-		// Search in post content.
-		foreach ( $search_patterns as $pattern ) {
-			$like = '%' . $wpdb->esc_like( $pattern ) . '%';
-
-			$query = $wpdb->prepare(
-				"SELECT ID, post_title FROM {$wpdb->posts}
-				WHERE post_type IN ('post', 'page')
-				AND post_status = 'publish'
-				AND post_content LIKE %s
-				LIMIT 1",
-				$like
-			);
-
-			$post = $wpdb->get_row( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-
-			if ( $post ) {
-				return $post;
-			}
+		// Combine patterns into a single OR query for better performance.
+		$like_conditions = array();
+		foreach ( array_slice( $search_patterns, 0, 5 ) as $pattern ) {
+			$like_conditions[] = $wpdb->prepare( 'post_content LIKE %s', '%' . $wpdb->esc_like( $pattern ) . '%' );
 		}
 
-		// Also search in post meta (in case URLs are stored in custom fields).
-		foreach ( $search_patterns as $pattern ) {
-			$like = '%' . $wpdb->esc_like( $pattern ) . '%';
+		$where_clause = implode( ' OR ', $like_conditions );
 
-			$query = $wpdb->prepare(
-				"SELECT p.ID, p.post_title
+		// Search in post content with combined query.
+		$query = "SELECT ID, post_title FROM {$wpdb->posts}
+				WHERE post_type IN ('post', 'page')
+				AND post_status = 'publish'
+				AND ({$where_clause})
+				LIMIT 1";
+
+		$post = $wpdb->get_row( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		if ( $post ) {
+			// Cache for 1 hour.
+			set_transient( $cache_key, $post, HOUR_IN_SECONDS );
+			return $post;
+		}
+
+		// Search in post meta with combined query.
+		$like_conditions = array();
+		foreach ( array_slice( $search_patterns, 0, 5 ) as $pattern ) {
+			$like_conditions[] = $wpdb->prepare( 'pm.meta_value LIKE %s', '%' . $wpdb->esc_like( $pattern ) . '%' );
+		}
+
+		$where_clause = implode( ' OR ', $like_conditions );
+
+		$query = "SELECT p.ID, p.post_title
 				FROM {$wpdb->posts} p
 				INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
 				WHERE p.post_type IN ('post', 'page')
 				AND p.post_status = 'publish'
-				AND pm.meta_value LIKE %s
-				LIMIT 1",
-				$like
-			);
+				AND ({$where_clause})
+				LIMIT 1";
 
-			$post = $wpdb->get_row( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$post = $wpdb->get_row( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
-			if ( $post ) {
-				return $post;
-			}
+		if ( $post ) {
+			// Cache for 1 hour.
+			set_transient( $cache_key, $post, HOUR_IN_SECONDS );
+			return $post;
 		}
+
+		// Cache negative result for 30 minutes.
+		set_transient( $cache_key, '', 30 * MINUTE_IN_SECONDS );
 
 		return null;
 	}
