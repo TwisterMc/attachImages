@@ -3,7 +3,7 @@
  * Plugin Name: Attach Orphaned Images
  * Plugin URI: https://github.com/TwisterMc/attachImages
  * Description: Scans attachments with no parent and attaches them to posts that contain their filename/URL
- * Version: 1.0.0
+ * Version: 1.0.0.1
  * Author: Thomas McMahon
  * Author URI: https://www.twistermc.com
  * License: GPL v2 or later
@@ -23,6 +23,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Main plugin class.
  */
 class Attach_Orphaned_Images {
+
+	/**
+	 * Plugin version.
+	 */
+	const VERSION = '1.0.0.1';
 
 	/**
 	 * Constructor.
@@ -57,22 +62,18 @@ class Attach_Orphaned_Images {
 			return;
 		}
 
-		wp_enqueue_style(
-			'attach-images-admin',
-			plugin_dir_url( __FILE__ ) . 'css/admin.css',
-			array(),
-			'1.0.0'
-		);
-
-		wp_enqueue_script(
-			'attach-images-admin',
-			plugin_dir_url( __FILE__ ) . 'js/admin.js',
-			array( 'jquery' ),
-			'1.0.0',
-			true
-		);
-
-		wp_localize_script(
+	wp_enqueue_style(
+		'attach-images-admin',
+		plugin_dir_url( __FILE__ ) . 'css/admin.css',
+		array(),
+		self::VERSION
+	);	wp_enqueue_script(
+		'attach-images-admin',
+		plugin_dir_url( __FILE__ ) . 'js/admin.js',
+		array( 'jquery' ),
+		self::VERSION,
+		true
+	);		wp_localize_script(
 			'attach-images-admin',
 			'attachImagesData',
 			array(
