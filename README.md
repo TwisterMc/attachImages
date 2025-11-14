@@ -15,7 +15,7 @@ A WordPress plugin that automatically scans for orphaned media attachments (imag
 - **Preview Mode**: Dry run option to see what would be attached without making changes
 - **Stop Processing**: Cancel scans at any time and view partial results
 - **Batch Processing**: Efficiently handles large media libraries (3000+ images) in 50-item batches
-- **Performance Optimized**: 
+- **Performance Optimized**:
   - Query result caching
   - Combined database queries
   - Increased execution time limits
@@ -164,6 +164,7 @@ WHERE post_type IN ('post', 'page', 'portfolio', 'product')
 ### Accessibility
 
 The plugin follows WCAG 2.1 guidelines:
+
 - Full keyboard navigation support
 - ARIA attributes for dynamic content
 - Screen reader announcements for progress updates
